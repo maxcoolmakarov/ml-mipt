@@ -21,7 +21,7 @@ class ThreeInputsNet(nn.Module):
         self.full_conv = nn.Conv1d(in_channels=hid_size, out_channels=hid_size, kernel_size=2)
         self.full_pull = nn.AdaptiveAvgPool1d(1)
 
-        self.category_out = nn.Linear(in_features = n_cat_features, hid_size)
+        self.category_out = nn.Linear(in_features = n_cat_features,out_features =  hid_size)
 
         # Example for the final layers (after the concatenation)
         self.inter_dense = nn.Linear(in_features=concat_number_of_features, out_features=hid_size*2)
