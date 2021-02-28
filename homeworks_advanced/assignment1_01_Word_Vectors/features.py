@@ -1,5 +1,6 @@
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 from sklearn.base import TransformerMixin
+from sklearn.preprocessing import normalize
 from typing import List, Union
 import numpy as np
 
@@ -7,7 +8,7 @@ import numpy as np
 class BoW(TransformerMixin):
     """
     Bag of words tranformer class
-    
+
     check out:
     https://scikit-learn.org/stable/modules/generated/sklearn.base.TransformerMixin.html
     to know about TransformerMixin class
@@ -28,10 +29,26 @@ class BoW(TransformerMixin):
         # task: find up to self.k most frequent tokens in texts_train,
         # sort them by number of occurences (highest first)
         # store most frequent tokens in self.bow
-        raise NotImplementedError
+
+        splited = ' '.join(X).split()
+        self.counter = Counter(splited)
+        min_count = 1
+        # tokens from token_counts keys that had at least min_count occurrences throughout the dataset
+        self.tokens = [token for token, counts in self.counter.items() if counts >= min_count]
+        # Add a special tokens for unknown and empty words
+        token_len = min(len(self.tokens), self.k)
+
+        # self.tokens = [UNK, PAD] + sorted(self.tokens)[:token_len]
+        self.tokens = sorted(self.tokens)[:token_len]
+        # token_len += 2
+        self.k = token_len
+
+        self.token_to_id = {token: idx for idx, token in enumerate(self.tokens)}
+        self.bow = self.tokens
 
         # fit method must always return self
         return self
+
 
     def _text_to_bow(self, text: str) -> np.ndarray:
         """
@@ -40,8 +57,24 @@ class BoW(TransformerMixin):
         :return bow_feature: feature vector, made by bag of words
         """
 
-        result = None
-        raise NotImplementedError
+        result = np.zeros(len(self.bow))
+        tokens = text.split()
+        for ind, token in enumerate(self.bow):
+            if token in tokens:
+                result[ind] += tokens.count(token)
+
+        # result = np.zeros(self.k)
+        # for word in text:
+        #   # if word in self.counter:
+        #   if word in self.tokens:
+        #       result[self.token_to_id[word]] += 1;
+            # else:
+            #   result[self.token_to_id["PAD"]] += 1;
+          # else:
+          #   result[self.token_to_id["UNK"]] += 1;
+
+        # result = None
+        # raise NotImplementedError
         return np.array(result, "float32")
 
     def transform(self, X: np.ndarray, y=None) -> np.ndarray:
@@ -80,7 +113,34 @@ class TfIdf(TransformerMixin):
         """
         :param X: array of texts to be trained on
         """
-        raise NotImplementedError
+        # raise NotImplementedError
+        splited = ' '.join(X).split()
+        self.counter = Counter(splited)
+        min_count = 1
+        # tokens from token_counts keys that had at least min_count occurrences throughout the dataset
+        self.tokens = [token for token, counts in self.counter.items() if counts >= min_count]
+        # Add a special tokens for unknown and empty words
+        token_len = min(len(self.tokens), self.k)
+
+        # self.tokens = [UNK, PAD] + sorted(self.tokens)[:token_len]
+        self.tokens = sorted(self.tokens)[:token_len]
+        # token_len += 2
+        self.k = token_len
+        self.bow = self.tokens
+
+        countDict = {}
+        # Run through each review's tf dictionary and increment countDict's (word, doc) pair
+        for review in X:
+            for word, counts in Counter(review.split()).items():
+                if word in countDict:
+                    countDict[word] += 1
+                else:
+                    countDict[word] = 1
+
+        self.idfDict = {}
+        for word in countDict:
+            self.idfDict[word] = np.log(len(X) / countDict[word])
+
 
         # fit method must always return self
         return self
@@ -93,8 +153,28 @@ class TfIdf(TransformerMixin):
         :return tf_idf: tf-idf features
         """
 
-        result = None
-        raise NotImplementedError
+        reviewTFDict = {}
+        reviewTFIDFDict = {}
+        for word in text.split():
+            if word in reviewTFDict:
+                reviewTFDict[word] += 1
+            else:
+                reviewTFDict[word] = 1
+        for word in reviewTFDict:
+            reviewTFDict[word] = reviewTFDict[word] / len(text.split())
+
+        # for word in reviewTFDict:
+        #
+        #     reviewTFIDFDict[word] = reviewTFDict[word] * self.idfDict[word]
+
+        result = np.zeros(len(self.bow))
+        tokens = text.split()
+        for ind, token in enumerate(self.bow):
+            if token in tokens:
+                result[ind] = reviewTFDict[token] * self.idfDict[token]
+        if self.normalize:
+            normalize(result.reshape(1, -1), norm = 'l2')
+        # raise NotImplementedError
         return np.array(result, "float32")
 
     def transform(self, X: np.ndarray, y=None) -> np.ndarray:
